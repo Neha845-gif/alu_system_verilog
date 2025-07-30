@@ -23,6 +23,33 @@ interface alu_if(input bit clk,input bit rst);
   clocking ref_cb@(posedge clk);
     default input #0 output #0;
     endclocking
+ // OPA validity check
+assert property (@(posedge clk) !$isunknown(op_a))
+else $error("OPA has unknown value at time %0t", $time);
+
+// OPB validity check
+assert property (@(posedge clk) !$isunknown(op_b))
+else $error("OPB has unknown value at time %0t", $time);
+
+// CIN validity check
+assert property (@(posedge clk) !$isunknown(cin))
+else $error("CIN has unknown value at time %0t", $time);
+
+// CE validity check
+assert property (@(posedge clk) !$isunknown(ce))
+else $error("CE has unknown value at time %0t", $time);
+
+// MODE validity check
+assert property (@(posedge clk) !$isunknown(mode))
+else $error("MODE has unknown value at time %0t", $time);
+
+// INP_VALID validity check
+assert property (@(posedge clk) !$isunknown(inp_valid))
+else $error("INP_VALID has unknown value at time %0t", $time);
+
+// CMD validity check
+assert property (@(posedge clk) !$isunknown(cmd))
+else $error("CMD has unknown value at time %0t", $time);
 
   modport DRV(clocking drv_cb,input rst);
     modport MON(clocking mon_cb,input rst);

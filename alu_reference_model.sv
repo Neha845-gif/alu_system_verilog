@@ -49,10 +49,10 @@ class alu_reference;
 
 
     task start();
-        forever begin
+         begin
             ref_trans = new();
             mbx_dr.get(ref_trans);
-            @(vif.ref_cb) begin
+             repeat(3) @(vif.ref_cb) begin
                 case(ref_trans.inp_valid)
                     2'b11: begin
                         case(ref_trans.mode)
@@ -84,8 +84,10 @@ class alu_reference;
                     end
                 endcase
                 mbx_rs.put(ref_trans);
-            end
-        end
+               $display("time[%0t] REFERENCE GOT THE DATA FROM DRIVER OPA=%0d, OPB= %0d CMD=%0d, MODE=%0b, INP_VALID=%0b, CE=%0b, CIN=%0b",$time,ref_trans.op_a,ref_trans.op_b,ref_trans.cmd,ref_trans.mode,ref_trans.inp_valid,ref_trans.ce,ref_trans.cin);
+               $display("value put at %0t",$time);
+           end
+         end
     endtask
 
     task process_arith();
@@ -207,4 +209,5 @@ class alu_reference;
             default: ref_trans.res = 1'bz;
         endcase
     endtask
+
 endclass

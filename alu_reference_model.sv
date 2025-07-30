@@ -3,16 +3,17 @@
 `define logic_mode 0
 
 // Arithmetic commands
-`define add     4'd0
-`define sub     4'd1
-`define add_cin 4'd2
-`define sub_cin 4'd3
-`define inc_a   4'd4
-`define dec_a   4'd5
-`define inc_b   4'd6
-`define dec_b   4'd7
-`define cmp     4'd8
-
+`define add       4'd0
+`define sub       4'd1
+`define add_cin   4'd2
+`define sub_cin   4'd3
+`define inc_a     4'd4
+`define dec_a     4'd5
+`define inc_b     4'd6
+`define dec_b     4'd7
+`define cmp       4'd8
+`define inc_mul   4'd9
+`define shift_mul 4'd10
 // Logical commands
 `define and     4'd0
 `define nand    4'd1
@@ -49,11 +50,13 @@ class alu_reference;
 
 
     task start();
-         begin
+      for(int i=0; i<`no_of_trans; i++)  begin
             ref_trans = new();
             mbx_dr.get(ref_trans);
-             repeat(3) @(vif.ref_cb) begin
-                case(ref_trans.inp_valid)
+
+
+
+                  case(ref_trans.inp_valid)
                     2'b11: begin
                         case(ref_trans.mode)
                             `arith_mode: process_arith();
@@ -83,10 +86,10 @@ class alu_reference;
                         ref_trans.L = 1'b0;
                     end
                 endcase
-                mbx_rs.put(ref_trans);
-               $display("time[%0t] REFERENCE GOT THE DATA FROM DRIVER OPA=%0d, OPB= %0d CMD=%0d, MODE=%0b, INP_VALID=%0b, CE=%0b, CIN=%0b",$time,ref_trans.op_a,ref_trans.op_b,ref_trans.cmd,ref_trans.mode,ref_trans.inp_valid,ref_trans.ce,ref_trans.cin);
-               $display("value put at %0t",$time);
-           end
+               mbx_rs.put(ref_trans);
+               $display("time[%0t] REFERENCE GOT THE DATA FROM DRIVER OPA=%0d, OPB= %0d CMD=%0d, MODE=%0b, INP_VALID=%0b, CE=%0b, CIN=%0b, res = %0d, cout = %0b, oflow = %0d",$time,ref_trans.op_a,ref_trans.op_b,ref_trans.cmd,ref_trans.mode,ref_trans.inp_valid,ref_trans.ce,ref_trans.cin,ref_trans.res,ref_trans.cout,ref_trans.oflow);
+
+
          end
     endtask
 
@@ -95,6 +98,8 @@ class alu_reference;
         case(ref_trans.cmd)
             `add: begin
                 {ref_trans.cout, ref_trans.res} = ref_trans.op_a + ref_trans.op_b;
+               ref_trans.oflow = (ref_trans.op_a[7] != ref_trans.op_b[7]) &&
+                                 (ref_trans.res[7] != ref_trans.op_a[7]);
 
             end
             `sub: begin
@@ -116,7 +121,17 @@ class alu_reference;
                 ref_trans.L = (ref_trans.op_a < ref_trans.op_b);
             end
 
-            default: begin
+           `inc_mul: begin // INC_MUL
+                    repeat(1) begin @(vif.ref_cb); end
+                    ref_trans.res = (ref_trans.op_a +1) * (ref_trans.op_b +1) ;
+                    end
+
+          `shift_mul: begin // SHIFT_MUL
+                  repeat(1) begin @(posedge vif.ref_cb); end
+                  ref_trans.res = (ref_trans.op_a << 1) * ref_trans.op_b ;
+                  end
+
+        default: begin
                 ref_trans.res = 1'b0;
                 ref_trans.cout = 1'b0;
                 ref_trans.oflow = 1'b0;

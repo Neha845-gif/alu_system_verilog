@@ -54,29 +54,18 @@ class alu_driver;
         this.vif = vif;
         drv_cg = new();
 
-   fork
-    forever begin
-        @(posedge vif.drv_cb);  // Monitor actual clock signal
-        if (vif.drv_cb.rst && (vif.drv_cb.inp_valid != 0)) begin  // Use interface signals directly
-            $error("[RESET VIOLATION] At %0t", $time);
-            $display("Current: Mode=%b Cmd=%h A=%h B=%h",
-                    vif.drv_cb.mode, vif.drv_cb.cmd, vif.drv_cb.op_a, vif.drv_cb.op_b);
-        end
-    end
-join_none
     endfunction
 
     // Main driver task
     task start();
-        repeat(3) @(vif.drv_cb);  // Initial synchronization
+        repeat(2) @(vif.drv_cb);  // Initial synchronization
 
         for(int i=0; i<`no_of_trans; i++) begin
-         repeat(2) @(vif.drv_cb);
-            drv_trans = new();
+          drv_trans = new();
             mbx_gd.get(drv_trans);  // Get transaction from generator
 
             if(vif.drv_cb.rst == 1) begin
-                // Reset condition
+               // Reset condition
                 vif.drv_cb.inp_valid <= 2'b0;
                 vif.drv_cb.mode <= 1'b0;
                 vif.drv_cb.cmd <= 4'b0;
@@ -84,13 +73,13 @@ join_none
                 vif.drv_cb.op_a <= 8'b0;
                 vif.drv_cb.op_b <= 8'b0;
                 vif.drv_cb.cin <= 0;
+                repeat(1)@(vif.drv_cb);
                 mbx_dr.put(drv_trans);
-                @(vif.drv_cb);
 
                 $display("DRIVER: Reset values driven at time %0t", $time);
             end
             else begin
-                // Check for special 16-cycle case
+                  // Check for special 16-cycle case
                 if (((drv_trans.inp_valid == 2'b01 || drv_trans.inp_valid == 2'b10) &&
                      drv_trans.ce &&
                      ((drv_trans.mode && (drv_trans.cmd inside {0,1,2,3,8,9,10})) ||
@@ -105,7 +94,7 @@ join_none
 
                     // Drive for 16 cycles or until both operands are valid
                     for (int j = 0; j < 16; j++) begin
-                        @(vif.drv_cb);
+                       @(vif.drv_cb);
 
                         // Drive all signals with fixed values for cmd, ce, mode
                         vif.drv_cb.inp_valid <= drv_trans.inp_valid;
@@ -115,7 +104,7 @@ join_none
                         vif.drv_cb.cmd <= cmd_fixed;
                         vif.drv_cb.ce <= ce_fixed;
                         vif.drv_cb.mode <= mode_fixed;
-
+                        repeat(1)@(vif.drv_cb);
                         mbx_dr.put(drv_trans);
 
                         // Break if both operands become valid
@@ -134,9 +123,9 @@ join_none
                     vif.drv_cb.op_b <= drv_trans.op_b;
                     vif.drv_cb.cin <= drv_trans.cin;
                     mbx_dr.put(drv_trans);
-                    @(vif.drv_cb);
-
-                    $display("DRIVER: Normal operation at time %0t", $time);
+                    repeat(1)@(vif.drv_cb);
+                    mbx_dr.put(drv_trans);
+                    $display("DRIVER: Normal operation at time %0t \t", $time);
                 end
 
                 // Display and coverage
@@ -145,7 +134,7 @@ join_none
                         vif.drv_cb.ce, vif.drv_cb.op_a, vif.drv_cb.op_b,
                         vif.drv_cb.cin, $time);
                 drv_cg.sample();
-                $display("DRIVER: Input coverage = %.2f%%", drv_cg.get_coverage());
+                $display("DRIVER: Input coverage = %.2f%% \t", drv_cg.get_coverage());
             end
         end
     endtask

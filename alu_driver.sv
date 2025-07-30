@@ -12,8 +12,12 @@ class alu_driver;
 
     // Functional coverage
     covergroup drv_cg;
+
         inp_valid_x: coverpoint drv_trans.inp_valid {
-            bins inp[] = {[0:3]};
+                        bins no_valid   = {2'b00};
+                        bins only_a     = {2'b01};
+                        bins only_b     = {2'b10};
+                        bins both_valid = {2'b11};
         }
         mode_x: coverpoint drv_trans.mode {
             bins mode = {0,1};
@@ -40,9 +44,14 @@ class alu_driver;
         cin_x: coverpoint drv_trans.cin {
             bins cin_a = {0,1};
         }
+
         mode_x_cmd: cross mode_x, cmd_x;
         inp_valid_x_cmd: cross inp_valid_x, cmd_x;
         inp_valid_x_mode: cross inp_valid_x, mode_x;
+        inp_valid_x_op_b: cross inp_valid_x, op_b_x;
+        inp_valid_x_op_a: cross inp_valid_x, op_a_x;
+        op_a_x_op_b: cross op_a_x, op_b_x;
+        op_a_x_cmd_x: cross op_a_x, cmd_x;
     endgroup
 
     // Constructor
@@ -80,10 +89,7 @@ class alu_driver;
             end
             else begin
                   // Check for special 16-cycle case
-                if (((drv_trans.inp_valid == 2'b01 || drv_trans.inp_valid == 2'b10) &&
-                     drv_trans.ce &&
-                     ((drv_trans.mode && (drv_trans.cmd inside {0,1,2,3,8,9,10})) ||
-                      (!drv_trans.mode && (drv_trans.cmd inside {0,1,2,3,4,5,12,13}))))) begin
+                if (drv_trans.randomize() with { cmd == cmd_fixed; mode == mode_fixed; ce == ce_fixed; }) begin
 
                     // Store fixed values
                     @(vif.drv_cb);
@@ -122,19 +128,22 @@ class alu_driver;
                     vif.drv_cb.op_a <= drv_trans.op_a;
                     vif.drv_cb.op_b <= drv_trans.op_b;
                     vif.drv_cb.cin <= drv_trans.cin;
-                    mbx_dr.put(drv_trans);
+
                     repeat(1)@(vif.drv_cb);
-                    mbx_dr.put(drv_trans);
+                     mbx_dr.put(drv_trans);
+
                     $display("DRIVER: Normal operation at time %0t \t", $time);
                 end
 
                 // Display and coverage
+
                 $display("DRIVER: INP_VALID=%0d, MODE=%b, CMD=%0d, CE=%b, OPA=%0d, OPB=%0d, CIN=%0b at time %0t",
                         vif.drv_cb.inp_valid, vif.drv_cb.mode, vif.drv_cb.cmd,
                         vif.drv_cb.ce, vif.drv_cb.op_a, vif.drv_cb.op_b,
                         vif.drv_cb.cin, $time);
                 drv_cg.sample();
                 $display("DRIVER: Input coverage = %.2f%% \t", drv_cg.get_coverage());
+
             end
         end
     endtask
